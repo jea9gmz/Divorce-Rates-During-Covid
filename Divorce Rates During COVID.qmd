@@ -1,0 +1,145 @@
+---
+title: "Divorce Rates in US during COVID"
+author: "Jeanine Gomez"
+format: html
+editor: visual
+---
+
+# Divorce Rates in the US during COVID
+
+```{r}
+library(tidyverse)
+library(usmap)
+library(plotly)
+library(dplyr)
+library(janitor)
+divorce_covid <- read.csv("data/data-table.csv")
+```
+
+## Question
+
+What was the average rate of divorce across different states during 2019-2022?
+
+# Rate of Divorce - By State
+
+```{r}
+#| warning: false
+divorce_covid |> 
+  group_by(STATE) |> 
+  summarize(mean_divorce = round(mean(RATE, na.rm = TRUE), 2),
+            median_divorce = round(median(RATE, na.rm = TRUE), 2),
+            sd_divorce = round(sd(RATE, na.rm = TRUE), 2),
+            min_divorce = round(min(RATE, na.rm = TRUE), 2),
+            max_divorce = round(max(RATE, na.rm = TRUE), 2),
+            count = n()) |> 
+  arrange(mean_divorce)
+```
+
+Divorce rates in the U.S. vary widely by state. States like Nevada, Wyoming, and Arkansas have much higher rates, while Illinois and Texas are lower. The average and median rates show that most states fall within a certain range, despite a few outliers. The standard deviation reveals big differences in divorce experiences across states, with rates ranging from as low as 1.5 to over 3 per 1,000 people. Overall, these stats give a clear picture of the diverse divorce trends across the country.
+
+## Histogram
+
+```{r}
+#! warning: false
+divorce_covid |>
+  ggplot(aes(x = RATE)) +
+  geom_histogram(bins = 50)
+```
+
+The histogram shows how divorce rates stacked up across U.S. states from 2019 to 2022. The bottom axis has the divorce rates, and the side one shows how many states had rates in those ranges. It’s a bit lopsided to the right, with most states falling between 2.0% and 3.5%. There aren’t many states with rates lower than 1.5% or higher than 4.0%, which means most states are hanging around moderate numbers. You’ll also notice some gaps at the extremes, probably pointing to some missing data or just fewer states with super low or super high rates. Overall, it’s clear that while divorce rates do vary a bit, they mostly stay pretty close to each other.
+
+# Plotting - Rate by State
+
+```{r}
+#| warning: false
+divorce_covid |>
+  ggplot(aes(x = RATE, y = STATE)) +
+  geom_boxplot() 
+```
+
+The boxplot shows how divorce rates differ across U.S. states from 2019 to 2022. Each horizontal box represents the range of rates for each state. The x-axis is for the divorce rates, and the y-axis lists the states. This makes it super easy to see how different states stack up in terms of their divorce rates and how much they vary. Some states have tight boxes, meaning their rates haven't changed much over the years, while others have wider boxes or random outliers, pointing to more ups and downs. States with sketchy or missing data might look smaller or less distinct. Overall, it's a cool way to see the differences in divorce trends across the country!
+
+# Divorce Rates - By Year
+
+## Question
+
+What was the average rate of divorce across the nation per year between 2019-2022?
+
+```{r}
+#| warning: false
+divorce_covid |>
+  ggplot(aes(x = YEAR, y = RATE)) +
+  geom_point()
+```
+
+The scatter plot shows how divorce rates have changed from 2019 to 2022 across different states. Each dot represents a state's divorce rate for those years, and you can see that there's a lot of variation between them. There isn't a strong trend going up or down overall, but you can spot some ups and downs, which might be linked to state-specific issues or even stuff like the COVID-19 pandemic. The plot gives a good sense of how divorce rates were spread out over those years, but it’s worth noting that missing data from some states means we can't get the full picture.
+
+## Anova
+
+```{r}
+anova <- aov(RATE ~ factor(YEAR), data = divorce_covid)
+summary(anova)
+```
+
+I looked into the divorce rates from 2019 to 2022, and guess what? There’s definitely a big difference between the years. The stats showed that the year you’re looking at matters a lot in terms of how many people were getting divorced, with the results pointing to something significant (F(3, 190) = 5.04, p = 0.0023). It seems like at least one of those years had a divorce rate that really stood out compared to the rest. This might be linked to changes happening in society or maybe even stuff like the COVID-19 pandemic that could have affected people’s decisions around divorce.
+
+## Linear Regression
+
+```{r}
+model <- lm(RATE ~ factor(YEAR), data = divorce_covid)
+summary(model)
+```
+
+So, I used a linear regression model to check out how divorce rates changed from 2019 to 2022, treating each year as its own category. Turns out, there weren't any statistically significant differences in divorce rates between the years (p \> 0.05 for all the comparisons). We did notice some ups and downs in the average rates from year to year, but nothing that was really significant. The overall fit of the model wasn’t great either, as shown by a pretty low R-squared value, which means the year alone doesn't explain much of the variation in divorce rates across states during this time. Basically, it looks like there weren't any major or consistent changes in divorce rates that we could pin down to just the year.
+
+# Plot Map
+
+```{r}
+#| warning: false
+centroid_labels <-usmapdata::centroid_labels("state") |>
+  rename("STATE" = abbr)
+divorce_covid <- merge(centroid_labels, divorce_covid, by = "STATE")
+divorce_covid <- divorce_covid |>
+  clean_names()
+d <- plot_usmap(data = divorce_covid,
+           values = "rate") +
+  scale_fill_continuous(name = "Rate of Divorce",
+                        low = "#FFC2B5",
+                        high = "#FF2D00",
+                        na.value = "grey") +
+  theme(legend.position = "right") +
+  geom_sf_text(aes(label = round(rate, 2)), color = "white", size = 3) +
+  labs(title = "Average Divorce Rate between 2019-2022")
+ggplotly(d)
+```
+
+Check out this U.S. map showing average divorce rates by state from 2019 to 2022. It uses colors from light peach to deep red: darker red means higher rates and lighter shades mean lower ones. States in grey didn’t report enough data.
+
+Each state has its average rate labeled, so you can easily compare. You’ll notice that the Southeast and parts of the West typically have higher rates, while many Northeast and Midwest states are lower. Overall, this map gives a quick look at how divorce rates vary across the country over those four years.
+
+```         
+```
+
+## Question
+
+What did the differences look like over the years?
+
+```{r}
+divorce_covid <- divorce_covid |>
+  clean_names()  
+
+plot_usmap(data = divorce_covid, values = "rate") +
+  facet_wrap(~year) +
+  scale_fill_continuous(name = "Divorce Rate",
+                        low = "#FFC2B5", high = "#FF2D00", na.value = "grey") +
+  theme(legend.position = "right") +
+  labs(title = "Divorce Rate by State (2019–2022)")
+```
+
+The U.S. map visualization shows divorce rates by state from 2019 to 2022, making it super easy to compare trends year by year. The color scale is pretty straightforward: light peach colors mean lower divorce rates, while deep reds indicate higher ones. If there's no data for a state, it's shaded in gray. By breaking down the maps by year, you can really see how state divorce rates have changed over those four years. Some states keep their rates steady, while others see some wild ups and downs, highlighting how different regions experience divorce trends. This layout of multiple maps is a great way to spot yearly shifts in divorce rates and check out any bigger national or regional patterns that might have popped up along the way.
+
+# Conclusion
+
+Looking at divorce rates in the U.S. from 2019 to 2022 shows some interesting ups and downs across different states. If you check out the boxplots, you’ll see that some states, like Nevada and Wyoming, are pretty high on the divorce scale, while others, like Illinois and Texas, tend to have lower rates. The histogram of all the rates hints that most states have average divorce rates, but there are a few that really stand out with much higher numbers. This kind of info helps shed light on the different divorce experiences across the country, which could be tied to things like state laws, money issues, or cultural vibes.
+
+When you look at the U.S. maps, it’s easy to see how divorce rates changed from year to year. Each year tells its own story—some states like Nevada and Oklahoma consistently had higher rates, while others such as Massachusetts and New Jersey kept things relatively steady with lower numbers. These maps, along with some time series visuals, give us a clearer picture of how divorce trends shift over time and across different places. All in all, these insights point out that divorce rates are influenced by a mix of factors that can change from year to year and state to state. This is pretty valuable info for anyone interested in marriage and divorce trends in the U.S.!
